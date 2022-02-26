@@ -14,14 +14,14 @@ type sawGenerator struct {
 	reverse bool
 }
 
-// Creates a streamer which will procude an infinite sawtooth tone with the given frequency.
+// Creates a streamer which will procude an infinite sawtooth wave with the given frequency.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func SawTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func SawtoothTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {
-		return nil, errors.New("faiface triangle tone generator: samplerate must be at least 2 times grater then frequency")
+		return nil, errors.New("faiface sawtooth tone generator: samplerate must be at least 2 times grater then frequency")
 	}
 
 	return &sawGenerator{dt, 0, false}, nil
@@ -31,7 +31,7 @@ func SawTone(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 // sawtooth is reversed so the slope is negative.
 // use other wrappers of this package to change amplitude or add time limit.
 // sampleRate must be at least two times grater then frequency, otherwise this function will return an error.
-func SawToneReversed(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
+func SawtoothToneReversed(sr beep.SampleRate, freq float64) (beep.Streamer, error) {
 	dt := freq / float64(sr)
 
 	if dt >= 1.0/2.0 {

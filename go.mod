@@ -1,4 +1,4 @@
-module github.com/Alextopher/itl-ghorus
+module github.com/Alextopher/itl-chorus
 
 go 1.17
 

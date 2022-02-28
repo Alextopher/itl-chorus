@@ -2,7 +2,10 @@ module github.com/Alextopher/itl-chorus
 
 go 1.17
 
-require github.com/faiface/beep v1.1.0
+require (
+	github.com/faiface/beep v1.1.0
+	gitlab.com/gomidi/midi v1.23.7
+)
 
 require (
 	github.com/hajimehoshi/oto v0.7.1 // indirect

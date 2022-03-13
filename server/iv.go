@@ -24,7 +24,7 @@ type streamEvent struct {
 }
 
 func midiNoteToFreq(note uint8) uint32 {
-	return uint32(440 * math.Pow(2, float64(note-69)/127))
+	return uint32(math.Pow(2, float64(note)/12.0) * 8.1758)
 }
 
 type voice struct {
@@ -123,6 +123,8 @@ func merge(voices []*voice, n int) []stream {
 		streams[i] = stream
 	}
 
+	fmt.Println(len(streams))
+
 	// group the streams into n groups
 	groups := make([]stream, n)
 	totals := make([]time.Duration, n)
@@ -131,6 +133,9 @@ func merge(voices []*voice, n int) []stream {
 	}
 
 	for _, stream := range streams {
+		// for i := 0; i < 4; i++ {
+		// 	stream := streams[i]
+
 		// find the smallest group
 		min := 0
 		for i := 1; i < n; i++ {

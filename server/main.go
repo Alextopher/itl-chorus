@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -28,8 +29,8 @@ func main() {
 	}
 
 	// Spawn a goroutine to handle sending and receiving messages
-	send := make(chan shared.Message)
-	recv := make(chan shared.Message)
+	send := make(chan shared.Message, 10)
+	recv := make(chan shared.Message, 10)
 
 	go shared.Recv(conn, recv)
 	go shared.Send(conn, send)
@@ -41,8 +42,8 @@ func main() {
 
 	clients := make([]*net.UDPAddr, 0)
 
-	// Listen for incoming messages for 10 seconds
-	timer := time.NewTimer(time.Second * 10)
+	// Listen for incoming messages for 3 seconds
+	timer := time.NewTimer(time.Second * 3)
 Loop:
 	for {
 		select {
@@ -63,7 +64,27 @@ Loop:
 		}
 	}
 
-	fmt.Println("Found", len(clients), "connections")
+	fmt.Println("Found", len(clients), "clients")
+
+	// Handle sys interrupt
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt)
+		<-sig
+
+		pkt := &shared.QUIT_Packet{}
+		for _, client := range clients {
+			send <- shared.Message{
+				Pkt:  pkt,
+				Addr: client,
+			}
+		}
+
+		// Wait for 1 second to make sure all packets are sent
+		time.Sleep(time.Second)
+		os.Exit(1)
+	}()
+
 	fmt.Println("Running makeIV...")
 
 	start := time.Now()
@@ -100,7 +121,7 @@ Loop:
 				pkt := shared.PLAY_Packet{
 					Duration:  event.dur,
 					Frequency: midiNoteToFreq(event.key),
-					Amplitude: float32(event.vel) / 127,
+					Amplitude: float32(event.vel) / float32(2048),
 					Voice:     1,
 				}
 
@@ -112,6 +133,17 @@ Loop:
 		}(client)
 	}
 	wg.Wait()
+
+	pkt := &shared.QUIT_Packet{}
+	for _, client := range clients {
+		send <- shared.Message{
+			Pkt:  pkt,
+			Addr: client,
+		}
+	}
+
+	// Wait for 1 second to make sure all packets are sent
+	time.Sleep(time.Second)
 
 	fmt.Println("Done")
 }

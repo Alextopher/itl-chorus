@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/Alextopher/itl-chorus/client/generators"
@@ -13,11 +14,13 @@ import (
 	"github.com/faiface/beep/speaker"
 )
 
-var sr = beep.SampleRate(44100)
+var sr = beep.SampleRate(48000)
 
 func main() {
+	fmt.Println(runtime.GOOS, runtime.GOARCH)
+
 	// initilize speaker
-	err := speaker.Init(sr, sr.N(time.Second/100))
+	err := speaker.Init(sr, sr.N(time.Second/1000))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -41,6 +44,10 @@ func main() {
 
 	// define the broadcast address
 	broadcastAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:12074")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	// Spawn a goroutine to handle sending and receiving messages
 	send := make(chan shared.Message)
@@ -58,6 +65,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+Start:
+	speaker.Clear()
 
 	// Broadcast a CAPS packet until we get a response from the server
 	ticker := time.NewTicker(time.Second)
@@ -91,6 +101,8 @@ Loop:
 			fmt.Println(pkt)
 
 			play(pkt)
+		case shared.QUIT:
+			goto Start
 		}
 	}
 }
@@ -99,7 +111,7 @@ func play(pkt *shared.PLAY_Packet) {
 	freq := float64(pkt.Frequency)
 	wl := int(float64(sr) / freq)
 
-	g, err := generators.SquareTone(sr, freq)
+	g, err := generators.SawtoothTone(sr, freq)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -115,7 +127,6 @@ func play(pkt *shared.PLAY_Packet) {
 	// make sure sample / wl is an integer
 	samples = (samples / wl) * wl
 
-	// fade := &TakeAndFade{streamer: amp, duration: 10000, total: samples}
 	speaker.Play(beep.Take(samples, amp))
 }
 

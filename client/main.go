@@ -10,7 +10,6 @@ import (
 	"github.com/Alextopher/itl-chorus/client/generators"
 	"github.com/Alextopher/itl-chorus/shared"
 	"github.com/faiface/beep"
-	"github.com/faiface/beep/effects"
 	"github.com/faiface/beep/speaker"
 )
 
@@ -88,8 +87,8 @@ Loop:
 	for msg := range recv {
 		switch msg.Pkt.Type() {
 		case shared.PLAY:
-			fmt.Println("Received PLAY from", msg.Addr)
 			pkt := msg.Pkt.(*shared.PLAY_Packet)
+			fmt.Println(pkt)
 
 			play(pkt)
 		}
@@ -97,18 +96,44 @@ Loop:
 }
 
 func play(pkt *shared.PLAY_Packet) {
-	g, err := generators.TriangleTone(sr, float64(pkt.Frequency))
+	freq := float64(pkt.Frequency)
+	wl := int(float64(sr) / freq)
+
+	g, err := generators.SquareTone(sr, freq)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	volume := &effects.Volume{
-		Streamer: g,
-		Base:     2,
-		Volume:   -5,
-		Silent:   false,
-	}
+	// play note until next event
+	amp := &Amplitude{streamer: g, amplitude: float64(pkt.Amplitude)}
 
-	speaker.Play(beep.Take(sr.N(pkt.Duration), volume))
+	// the duration of the note is the difference between the next event and the current event
+	// round down to the nearest frequency
+	samples := sr.N(pkt.Duration)
+
+	// make sure sample / wl is an integer
+	samples = (samples / wl) * wl
+
+	// fade := &TakeAndFade{streamer: amp, duration: 10000, total: samples}
+	speaker.Play(beep.Take(samples, amp))
+}
+
+type Amplitude struct {
+	streamer  beep.Streamer
+	amplitude float64
+}
+
+// Stream streams the wrapped Streamer amplified by Gain.
+func (g *Amplitude) Stream(samples [][2]float64) (n int, ok bool) {
+	n, ok = g.streamer.Stream(samples)
+	for i := range samples[:n] {
+		samples[i][0] *= g.amplitude
+		samples[i][1] *= g.amplitude
+	}
+	return n, ok
+}
+
+func (g *Amplitude) Err() error {
+	return g.streamer.Err()
 }

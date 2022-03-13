@@ -9,7 +9,7 @@ import (
 func TestPlay(t *testing.T) {
 	// Create a play packet and check it serializes and deserializes correctly
 	play := PLAY_Packet{
-		Duration:  time.Second * 5,
+		Duration:  time.Second*5 + time.Nanosecond*1500,
 		Frequency: 440,
 		Amplitude: 0.5,
 		Voice:     1,

@@ -95,6 +95,7 @@ Loop:
 			for _, event := range stream.events {
 				// Sleep until the event is due
 				time.Sleep(time.Until(start.Add(event.rt)))
+				fmt.Println(event.rt)
 
 				pkt := shared.PLAY_Packet{
 					Duration:  event.dur,

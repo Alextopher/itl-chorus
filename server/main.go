@@ -121,7 +121,7 @@ Loop:
 				pkt := shared.PLAY_Packet{
 					Duration:  event.dur,
 					Frequency: midiNoteToFreq(event.key),
-					Amplitude: float32(event.vel) / float32(2048),
+					Amplitude: float32(event.vel) / float32(256),
 					Voice:     1,
 				}
 

@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"time"
 
@@ -17,7 +18,14 @@ import (
 var sr = beep.SampleRate(48000)
 
 func main() {
-	fmt.Println(runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "linux" {
+		// run these two commands to unmute the speakers
+		// for x in `amixer controls  | grep layback` ; do amixer cset "${x}" on ; done
+		// for x in `amixer controls  | grep layback` ; do amixer cset "${x}" 70% ; done
+
+		exec.Command("/bin/sh | for x in `amixer controls  | grep layback` ; do amixer cset \"${x}\" on ; done")
+		exec.Command("/bin/sh | for x in `amixer controls  | grep layback` ; do amixer cset \"${x}\" on 100%; done")
+	}
 
 	// initilize speaker
 	err := speaker.Init(sr, sr.N(time.Second/1000))
@@ -111,7 +119,20 @@ func play(pkt *shared.PLAY_Packet) {
 	freq := float64(pkt.Frequency)
 	wl := int(float64(sr) / freq)
 
-	g, err := generators.SawtoothTone(sr, freq)
+	var g beep.Streamer
+	var err error
+
+	switch pkt.Voice {
+	case 0:
+		g, err = generators.SineTone(sr, freq)
+	case 1:
+		g, err = generators.SawtoothTone(sr, freq)
+	case 2:
+		g, err = generators.SquareTone(sr, freq)
+	case 3:
+		g, err = generators.TriangleTone(sr, freq)
+	}
+
 	if err != nil {
 		fmt.Println(err)
 		return

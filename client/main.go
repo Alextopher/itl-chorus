@@ -20,11 +20,18 @@ var sr = beep.SampleRate(48000)
 func main() {
 	if runtime.GOOS == "linux" {
 		// run these two commands to unmute the speakers
-		// for x in `amixer controls  | grep layback` ; do amixer cset "${x}" on ; done
-		// for x in `amixer controls  | grep layback` ; do amixer cset "${x}" 70% ; done
+		// amixer set Master 100%
+		// amixer sset Master unmute
+		// amixer set Speaker 100%
+		// amixer sset Speaker unmute
+		c1 := exec.Command("/bin/bash", "-c", "amixer set Master 50% ; amixer sset Master unmute ; amixer set Speaker 50% ; amixer sset Speaker unmute")
+		o, err := c1.CombinedOutput()
+		if err != nil {
+			fmt.Println(err)
+		}
 
-		exec.Command("/bin/sh | for x in `amixer controls  | grep layback` ; do amixer cset \"${x}\" on ; done")
-		exec.Command("/bin/sh | for x in `amixer controls  | grep layback` ; do amixer cset \"${x}\" on 100%; done")
+		fmt.Println(string(o))
+		fmt.Println("Speakers unmuted")
 	}
 
 	// initilize speaker
@@ -51,6 +58,7 @@ func main() {
 	}
 
 	// define the broadcast address
+	// the server will be listening somewhere in the local network
 	broadcastAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:12074")
 	if err != nil {
 		fmt.Println(err)
@@ -80,11 +88,11 @@ Start:
 	// Broadcast a CAPS packet until we get a response from the server
 	ticker := time.NewTicker(time.Second)
 
+	fmt.Println("Sending CAPS to", broadcastAddr, "...")
 Loop:
 	for {
 		select {
 		case <-ticker.C:
-			fmt.Println("Sending CAPS to", broadcastAddr)
 			send <- shared.Message{
 				Pkt: &shared.CAPS_Packet{
 					Name:      "gogo",
@@ -110,11 +118,13 @@ Loop:
 
 			play(pkt)
 		case shared.QUIT:
+			fmt.Println("Received QUIT from", msg.Addr)
 			goto Start
 		}
 	}
 }
 
+// play plays the given packet to the speakers
 func play(pkt *shared.PLAY_Packet) {
 	freq := float64(pkt.Frequency)
 	wl := int(float64(sr) / freq)
@@ -122,6 +132,7 @@ func play(pkt *shared.PLAY_Packet) {
 	var g beep.Streamer
 	var err error
 
+	// voice encodes which generator to use for the note
 	switch pkt.Voice {
 	case 0:
 		g, err = generators.SineTone(sr, freq)
@@ -133,6 +144,7 @@ func play(pkt *shared.PLAY_Packet) {
 		g, err = generators.TriangleTone(sr, freq)
 	}
 
+	// some notes are too short to play without popping
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -140,12 +152,9 @@ func play(pkt *shared.PLAY_Packet) {
 
 	// play note until next event
 	amp := &Amplitude{streamer: g, amplitude: float64(pkt.Amplitude)}
-
-	// the duration of the note is the difference between the next event and the current event
-	// round down to the nearest frequency
 	samples := sr.N(pkt.Duration)
 
-	// make sure sample / wl is an integer
+	// make sure we play an integer number of cycles to avoid "popping"
 	samples = (samples / wl) * wl
 
 	speaker.Play(beep.Take(samples, amp))
@@ -156,7 +165,7 @@ type Amplitude struct {
 	amplitude float64
 }
 
-// Stream streams the wrapped Streamer amplified by Gain.
+// Stream streams the wrapped Streamer multiplied by max amplitude
 func (g *Amplitude) Stream(samples [][2]float64) (n int, ok bool) {
 	n, ok = g.streamer.Stream(samples)
 	for i := range samples[:n] {

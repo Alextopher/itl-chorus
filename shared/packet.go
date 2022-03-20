@@ -278,7 +278,7 @@ func (p UNKNOWN_Packet) DeSerialize(data []byte) error {
 }
 
 func (p UNKNOWN_Packet) String() string {
-	s := "PING("
+	s := "UNKNOWN("
 	for _, b := range p {
 		s += fmt.Sprintf("%02x", b)
 	}

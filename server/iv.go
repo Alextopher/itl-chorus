@@ -88,7 +88,9 @@ func makeIV(filename string) ([]*voice, error) {
 }
 
 // Fairly merges all the voice events into n voices
-func merge(voices []*voice, n int) []stream {
+// Also returns the duration of the song
+func merge(voices []*voice, n int) ([]stream, time.Duration) {
+	fmt.Println("Merging", len(voices), "voices into", n, "streams")
 	if n == 0 {
 		panic("n must be > 0")
 	}
@@ -123,8 +125,6 @@ func merge(voices []*voice, n int) []stream {
 		streams[i] = stream
 	}
 
-	fmt.Println(len(streams))
-
 	// group the streams into n groups
 	groups := make([]stream, n)
 	totals := make([]time.Duration, n)
@@ -133,9 +133,6 @@ func merge(voices []*voice, n int) []stream {
 	}
 
 	for _, stream := range streams {
-		// for i := 0; i < 4; i++ {
-		// 	stream := streams[i]
-
 		// find the smallest group
 		min := 0
 		for i := 1; i < n; i++ {
@@ -156,9 +153,18 @@ func merge(voices []*voice, n int) []stream {
 		})
 	}
 
-	fmt.Println("Total times for each stream:", totals)
+	// Find the duration of the song
+	var duration time.Duration
+	for _, stream := range streams {
+		// check the last event
+		if stream.events[len(stream.events)-1].rt > duration {
+			duration = stream.events[len(stream.events)-1].rt
+		}
+	}
 
-	return groups
+	fmt.Println("Note on times for each stream:", totals)
+
+	return groups, duration
 }
 
 // Makes sure that the key is in the map
